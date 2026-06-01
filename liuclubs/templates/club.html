@@ -1,0 +1,608 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>{{ club.name }} — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo-link"><img src="/static/liu-bg.png" alt="LIU Clubs" class="nav-logo-img"></a>
+        </div>
+        <nav class="nav-links">
+            <a href="/" onclick="if(document.referrer && document.referrer.includes(location.hostname)){ history.back(); return false; }" class="nav-link">← Back</a>
+            <a href="/" class="nav-link">Home</a>
+            <a href="/logout" class="nav-link" onclick="return confirm('Are you sure you want to logout?')">Logout</a>
+        </nav>
+    </header>
+
+    {% if club.cover_url %}
+    <div class="club-cover" style="background-image: url('{{ club.cover_url | replace("'", "%27") | replace('"', "%22") | replace('(', "%28") | replace(')', "%29") }}');"></div>
+    {% endif %}
+
+    <div class="page-content">
+
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="flash {{ category }}" style="margin-bottom: 16px;">{{ message }}</div>
+        {% endfor %}
+
+        {% if error == 'one_club' %}
+        <div class="flash error" style="margin-bottom: 16px;">
+            You can only be a member of one club at a time. Leave your current club first if you'd like to join this one.
+        </div>
+        {% elif error == 'not_recruiting' %}
+        <div class="flash error" style="margin-bottom: 16px;">
+            This club is not currently accepting new members.
+        </div>
+        {% endif %}
+
+        <div class="club-header card">
+            <div class="club-logo-wrap">
+                {% if club.logo_url %}
+                <img src="{{ club.logo_url }}" alt="{{ club.name }}" class="club-logo-img">
+                {% else %}
+                <div class="club-big-emoji"><i data-lucide="{{ club.name | club_icon }}"></i></div>
+                {% endif %}
+            </div>
+            <div class="club-info">
+                <h1>
+                    {{ club.name }}
+                    {% if leader %}<span class="leader-label">Club Leader: {{ leader.full_name }}</span>{% endif %}
+                </h1>
+                <p>{{ club.description }}</p>
+                {% if club.instagram or club.twitter or club.facebook or club.website %}
+                <div class="social-links">
+                    {% if club.instagram %}<a href="{{ club.instagram }}" target="_blank" rel="noopener noreferrer" class="social-btn">Instagram</a>{% endif %}
+                    {% if club.twitter %}<a href="{{ club.twitter }}" target="_blank" rel="noopener noreferrer" class="social-btn">Twitter</a>{% endif %}
+                    {% if club.facebook %}<a href="{{ club.facebook }}" target="_blank" rel="noopener noreferrer" class="social-btn">Facebook</a>{% endif %}
+                    {% if club.website %}<a href="{{ club.website }}" target="_blank" rel="noopener noreferrer" class="social-btn social-btn-web">Website</a>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="membership-status">
+                {% if is_leader %}
+                <span class="badge-leader">Club Leader</span>
+
+                {% elif status == 'approved' %}
+                <span class="badge-member"><i data-lucide="check-circle"></i> You're a member</span>
+                <form method="POST" action="/club/{{ club.id }}/leave" style="margin-top: 10px;"
+                      onsubmit="return confirm('Leave this club? You can re-apply later.')">
+                    <button type="submit" class="btn-small btn-red">Leave Club</button>
+                </form>
+
+                {% elif status == 'pending' %}
+                <span class="badge-pending"><i data-lucide="clock"></i> Request pending approval</span>
+                <form method="POST" action="/club/{{ club.id }}/leave" style="margin-top: 10px;"
+                      onsubmit="return confirm('Cancel your membership request?')">
+                    <button type="submit" class="btn-small btn-red">Cancel Request</button>
+                </form>
+
+                {% elif status == 'rejected' %}
+                <div>
+                    <span class="badge-rejected" style="display:block; margin-bottom: 10px;">Request was not approved</span>
+                    <button class="btn-outline" onclick="showJoinForm()">Try Again</button>
+                    <div id="join-form" style="display:none; margin-top: 12px;">
+                        <form method="POST" action="/club/{{ club.id }}/join">
+                            <div class="form-group">
+                                <label>Why do you want to join?</label>
+                                <textarea name="reason" rows="3" placeholder="Tell us a bit about yourself..."></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary">Resubmit Request</button>
+                            <button type="button" class="btn-outline" style="margin-left: 6px;" onclick="hideJoinForm()">Cancel</button>
+                        </form>
+                    </div>
+                </div>
+
+                {% else %}
+                {% if not club.accepting_members %}
+                <span class="badge-closed">Not Recruiting</span>
+                {% else %}
+                <button class="btn-primary" id="join-btn" onclick="showJoinForm()">Join This Club</button>
+                <div id="join-form" style="display:none; margin-top: 12px;">
+                    <form method="POST" action="/club/{{ club.id }}/join">
+                        <div class="form-group">
+                            <label>Why do you want to join?</label>
+                            <textarea name="reason" rows="3" placeholder="Tell us a bit about yourself..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Submit Request</button>
+                        <button type="button" class="btn-outline" style="margin-left: 6px;" onclick="hideJoinForm()">Cancel</button>
+                    </form>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if club.about_us or is_leader %}
+        <div class="card">
+            <div class="section-heading">About Us</div>
+            {% if is_leader %}
+            <div id="about-view">
+                {% if club.about_us %}
+                <p style="color:#374151; line-height:1.7; font-size:14px;">{{ club.about_us }}</p>
+                {% else %}
+                <p class="empty-state">No about section yet. Click Edit to add one.</p>
+                {% endif %}
+                <button class="btn-outline" style="margin-top:12px;" onclick="toggleAboutEdit(true)">Edit About</button>
+            </div>
+            <div id="about-edit" style="display:none;">
+                <form method="POST" action="/club/{{ club.id }}/edit_about">
+                    <div class="form-group">
+                        <textarea name="about_us" rows="5" style="width:100%;" placeholder="Write something about your club...">{{ club.about_us or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Save</button>
+                    <button type="button" class="btn-outline" style="margin-left:6px;" onclick="toggleAboutEdit(false)">Cancel</button>
+                </form>
+            </div>
+            {% else %}
+            <p style="color:#374151; line-height:1.7; font-size:14px;">{{ club.about_us }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="two-col">
+            <div class="col-left">
+
+                <div class="card">
+                    <div class="section-heading">Upcoming Events</div>
+                    {% if events %}
+                        {% for e in events %}
+                        <div class="event-item">
+                            <strong>{{ e.title }}</strong>
+                            <span class="event-meta">{{ e.date.strftime('%a, %b %d at %I:%M %p') }}</span>
+                            {% if e.location %}<span class="event-meta"><i data-lucide="map-pin"></i> {{ e.location }}</span>{% endif %}
+                            {% if e.description %}<span class="event-meta">{{ e.description }}</span>{% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="empty-state">No upcoming events.</p>
+                    {% endif %}
+                </div>
+
+                {% if past_events %}
+                <div class="card" style="margin-top: 16px;">
+                    <div class="section-heading">Past Events</div>
+                    {% for e in past_events %}
+                    <div class="event-item" style="opacity:0.65;">
+                        <strong>{{ e.title }}</strong>
+                        <span class="event-meta">{{ e.date.strftime('%b %d, %Y') }}</span>
+                        {% if e.location %}<span class="event-meta"><i data-lucide="map-pin"></i> {{ e.location }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="card" style="margin-top: 16px;">
+                    <div class="section-heading">Club Announcements</div>
+                    {% if announcements %}
+                        {% for ann in announcements %}
+                        {% set _is_new = current_user and (not current_user.last_seen_announcements or ann.created_at > current_user.last_seen_announcements) %}
+                        <div class="ann-item {% if ann.pinned %}ann-item-pinned{% endif %}{% if _is_new %} ann-item-new{% endif %}">
+                            <div class="ann-item-header">
+                                <div>
+                                    <strong>{{ ann.title }}</strong>
+                                    {% if ann.pinned %}<span class="pin-badge"><i data-lucide="pin" style="width:11px;height:11px;vertical-align:middle;"></i> Pinned</span>{% endif %}
+                                    <span class="event-meta">{{ ann.created_at.strftime('%b %d, %Y') }}</span>
+                                </div>
+                                {% if is_leader %}
+                                <form method="POST" action="/leader/pin_announcement/{{ ann.id }}" style="display:inline;">
+                                    <button type="submit" class="btn-small {% if ann.pinned %}btn-pin-active{% endif %}" title="{{ 'Unpin' if ann.pinned else 'Pin' }}">
+                                        <i data-lucide="{{ 'pin-off' if ann.pinned else 'pin' }}" style="width:13px;height:13px;vertical-align:middle;"></i>
+                                        {{ 'Unpin' if ann.pinned else 'Pin' }}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            <p>{{ ann.content }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="empty-state">Nothing posted yet.</p>
+                    {% endif %}
+                </div>
+
+            </div>
+            <div class="col-right">
+
+                <div class="card">
+                    <div class="section-heading">Members ({{ member_users|length }})</div>
+                    {% if member_users %}
+                    <ul class="member-list">
+                        {% for u in member_users %}
+                        <li>
+                            <a href="/user/{{ u.id }}" class="member-name-link">{{ u.full_name }}</a>
+                            {% if u.role == 'admin' %}<span class="{{ 'member-host-badge' if u.email == super_admin_email else 'member-admin-badge' }}">{{ 'Host' if u.email == super_admin_email else 'Admin' }}</span>{% endif %}
+                            {% if club.president_id == u.id %}<span class="member-leader-badge">Club Leader</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty-state">No members yet.</p>
+                    {% endif %}
+                </div>
+
+                {% if status == 'approved' or is_leader %}
+                <div class="card" style="margin-top: 16px;" id="chat">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div class="section-heading" style="margin-bottom:0;">Club Chat</div>
+                        {% if is_leader %}
+                        {% if club.clear_chat_requested %}
+                        <span style="font-size:12px; color:#d97706; font-weight:500;"><i data-lucide="clock"></i> Clear request sent</span>
+                        {% else %}
+                        <form method="POST" action="/club/{{ club.id }}/request_clear_chat"
+                              onsubmit="return confirm('Request the Host to clear all chat messages?')">
+                            <button class="btn-small btn-outline" style="font-size:11px;">Request Chat Clear</button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="chat-box">
+                        {% if messages %}
+                            {% for msg in messages %}
+                            {% set sender = msg_users.get(msg.user_id) %}
+                            <div class="chat-msg {% if msg.user_id == current_user_id %}chat-msg-mine{% endif %}">
+                                <div class="chat-meta">
+                                    <span class="chat-name">
+                                        {{ sender.full_name if sender else 'Unknown' }}
+                                        {% if sender and sender.role == 'admin' %}<span class="{{ 'chat-host-tag' if sender.email == super_admin_email else 'chat-admin-tag' }}">{{ 'Host' if sender.email == super_admin_email else 'Admin' }}</span>
+                                        {% elif sender and club.president_id == sender.id %}<span class="chat-leader-tag">Club Leader</span>{% endif %}
+                                    </span>
+                                    <span class="chat-time">{{ msg.created_at.strftime('%b %d, %I:%M %p') }}</span>
+                                </div>
+                                <div class="chat-bubble">{{ msg.content }}</div>
+                                <div class="chat-reactions" id="reactions-{{ msg.id }}">
+                                    {% set r_counts = msg_reactions.get(msg.id, {}) %}
+                                    {% set u_emojis = user_reactions.get(msg.id, []) %}
+                                    {% for emoji in ['👍','❤️','😂','😮','👏'] %}
+                                    {% if r_counts.get(emoji) %}
+                                    <button class="reaction-pill {% if emoji in u_emojis %}reaction-pill-active{% endif %}"
+                                        data-emoji="{{ emoji }}"
+                                        onclick="sendReaction({{ club.id }}, {{ msg.id }}, '{{ emoji }}', this)">
+                                        {{ emoji }}<span class="reaction-count">{{ r_counts[emoji] }}</span>
+                                    </button>
+                                    {% endif %}
+                                    {% endfor %}
+                                    <div class="reaction-picker" id="picker-{{ msg.id }}">
+                                        {% for emoji in ['👍','❤️','😂','😮','👏'] %}
+                                        <button class="reaction-pick-btn {% if emoji in u_emojis %}reaction-pick-active{% endif %}"
+                                            data-emoji="{{ emoji }}"
+                                            onclick="sendReaction({{ club.id }}, {{ msg.id }}, '{{ emoji }}', this)">{{ emoji }}</button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="empty-state" style="text-align:center; padding:20px 0;">No messages yet. Start the conversation!</p>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="/club/{{ club.id }}/send_message" class="chat-form">
+                        <input type="text" name="content" placeholder="Type a message..." autocomplete="off" required maxlength="2000">
+                        <button type="submit" class="btn-primary">Send</button>
+                    </form>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        {% if is_leader %}
+        <div class="card" style="margin-top: 24px;">
+            <div class="section-heading" style="font-size:16px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="crown"></i> Leader Panel
+            </div>
+
+            <div class="admin-tabs">
+                <button type="button" class="lp-tab-btn active" data-lptab="lptab-members">
+                    Members{% if pending_requests %}<span class="pending-badge">{{ pending_requests|length }}</span>{% endif %}
+                </button>
+                <button type="button" class="lp-tab-btn" data-lptab="lptab-events">Events</button>
+                <button type="button" class="lp-tab-btn" data-lptab="lptab-announcements">Announcements</button>
+                <button type="button" class="lp-tab-btn" data-lptab="lptab-profile">Club Profile</button>
+            </div>
+
+            <div id="lptab-members" class="lp-tab-content active" style="padding-top:16px;">
+                <div class="recruitment-toggle-row">
+                    <span class="recruitment-label">
+                        Recruitment:
+                        <strong class="{% if club.accepting_members %}recruit-open{% else %}recruit-closed{% endif %}">
+                            {% if club.accepting_members %}Open{% else %}Closed{% endif %}
+                        </strong>
+                    </span>
+                    <form method="POST" action="/leader/toggle_recruitment" style="display:inline;">
+                        <button type="submit" class="btn-small {% if club.accepting_members %}btn-outline{% else %}btn-green{% endif %}">
+                            {% if club.accepting_members %}Close Recruitment{% else %}Open Recruitment{% endif %}
+                        </button>
+                    </form>
+                </div>
+                {% if pending_requests %}
+                <div class="section-heading">Pending Requests</div>
+                <table class="admin-table" style="margin-bottom:24px;">
+                    <thead>
+                        <tr><th>Name</th><th>Student ID</th><th>Email</th><th>Reason</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in pending_requests %}
+                        <tr>
+                            <td>{{ row.user.full_name }}</td>
+                            <td>{{ row.user.student_id }}</td>
+                            <td>{{ row.user.email }}</td>
+                            <td style="max-width:200px; white-space:normal;">{{ row.membership.reason or '—' }}</td>
+                            <td class="action-cell">
+                                <form method="POST" action="/leader/approve/{{ row.membership.id }}" style="display:inline">
+                                    <button class="btn-small btn-green">Approve</button>
+                                </form>
+                                <form method="POST" action="/leader/reject/{{ row.membership.id }}" style="display:inline">
+                                    <button class="btn-small btn-red">Reject</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                <div class="section-heading">Approved Members</div>
+                {% if approved_rows %}
+                <table class="admin-table">
+                    <thead>
+                        <tr><th>Name</th><th>Student ID</th><th>Email</th><th>Joined</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in approved_rows %}
+                        <tr>
+                            <td>{{ row.user.full_name }}</td>
+                            <td>{{ row.user.student_id }}</td>
+                            <td>{{ row.user.email }}</td>
+                            <td>{{ row.membership.joined_at.strftime('%b %d, %Y') if row.membership.joined_at else '—' }}</td>
+                            <td>
+                                {% if row.user.role != 'admin' and row.user.id != current_user_id %}
+                                <form method="POST" action="/leader/remove_member/{{ row.membership.id }}"
+                                      onsubmit="return confirm('Remove this member from the club?')">
+                                    <button class="btn-small btn-red">Remove</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="empty-state">No approved members yet.</p>
+                {% endif %}
+            </div>
+
+            <div id="lptab-events" class="lp-tab-content" style="padding-top:16px;">
+                <div class="section-heading">Propose an Event</div>
+                <div class="inline-form">
+                    <form method="POST" action="/leader/propose_event" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <input type="text" name="title" placeholder="Event title" required style="width:100%;">
+                        </div>
+                        <div class="form-row" style="margin-bottom:8px;">
+                            <input type="datetime-local" name="date" required>
+                            <input type="text" name="location" placeholder="Location" style="flex:1;">
+                        </div>
+                        <div class="form-group">
+                            <textarea name="description" rows="2" placeholder="Short description (optional)" style="width:100%;"></textarea>
+                        </div>
+                        <div class="form-row" style="margin-bottom:8px;">
+                            <select name="campus" style="flex:1; padding:8px; border:1.5px solid #e5e7eb; border-radius:6px; font-size:13px;">
+                                <option value="">All Campuses</option>
+                                {% for cp in campuses %}<option value="{{ cp }}">{{ cp }}</option>{% endfor %}
+                            </select>
+                            <input type="number" name="rsvp_limit" min="1" placeholder="RSVP limit (optional)" style="flex:1; padding:8px; border:1.5px solid #e5e7eb; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:13px; color:#555;">Poster image (optional):</label>
+                            <input type="file" name="poster_file" accept="image/*" style="font-size:13px;">
+                        </div>
+                        <div class="form-group">
+                            <textarea name="leader_note" rows="2" placeholder="Message to admin — explain the event so they can approve it..." style="width:100%;"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Submit for Approval</button>
+                    </form>
+                </div>
+
+                {% if proposed_events_leader %}
+                <div class="section-heading" style="margin-top:20px;">My Proposals</div>
+                {% for e in proposed_events_leader %}
+                <div class="ann-admin-item" style="border-left:3px solid {% if e.status == 'pending' %}#d97706{% else %}#dc2626{% endif %}; padding-left:12px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <strong>{{ e.title }}</strong>
+                        <span class="status-{{ e.status }}" style="font-size:12px;">{{ e.status }}</span>
+                    </div>
+                    <div class="ann-date">{{ e.date.strftime('%b %d, %Y at %I:%M %p') }}{% if e.location %} &bull; {{ e.location }}{% endif %}</div>
+                    {% if e.leader_note %}<div class="ann-body" style="color:#6b7280; font-style:italic;">Your note: {{ e.leader_note }}</div>{% endif %}
+                    <form method="POST" action="/leader/delete_event_proposal/{{ e.id }}" style="margin-top:6px;"
+                          onsubmit="return confirm('Delete this proposal?')">
+                        <button class="btn-small btn-red">Delete</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if events %}
+                <div class="section-heading" style="margin-top:20px;">Live Events</div>
+                {% for e in events %}
+                <div class="event-item">
+                    <strong>{{ e.title }}</strong>
+                    <span class="event-meta">{{ e.date.strftime('%a, %b %d at %I:%M %p') }}</span>
+                    {% if e.location %}<span class="event-meta"><i data-lucide="map-pin"></i> {{ e.location }}</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="empty-state" style="margin-top:12px;">No live events yet.</p>
+                {% endif %}
+            </div>
+
+            <div id="lptab-announcements" class="lp-tab-content" style="padding-top:16px;">
+                <div class="section-heading">Propose an Announcement</div>
+                <div class="inline-form">
+                    <form method="POST" action="/leader/add_announcement">
+                        <div class="form-group">
+                            <input type="text" name="title" placeholder="Title" required style="width:100%;">
+                        </div>
+                        <div class="form-group">
+                            <textarea name="content" rows="3" placeholder="Announcement content..." required style="width:100%;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <textarea name="leader_note" rows="2" placeholder="Message to admin — explain why this should be posted..." style="width:100%;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:13px; color:#6b7280; display:block; margin-bottom:4px;">Schedule for later (optional)</label>
+                            <input type="datetime-local" name="publish_at" style="width:100%;">
+                        </div>
+                        <button type="submit" class="btn-primary">Submit for Approval</button>
+                    </form>
+                </div>
+
+                {% if proposed_announcements_leader %}
+                <div class="section-heading" style="margin-top:20px;">My Proposals</div>
+                {% for ann in proposed_announcements_leader %}
+                <div class="ann-admin-item" style="border-left:3px solid {% if ann.status == 'pending' %}#d97706{% else %}#dc2626{% endif %}; padding-left:12px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <div class="ann-title">{{ ann.title }}</div>
+                        <span class="status-{{ ann.status }}" style="font-size:12px;">{{ ann.status }}</span>
+                        {% if ann.publish_at and ann.status == 'pending' %}<span class="badge-scheduled"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:middle;"></i> Scheduled {{ ann.publish_at.strftime('%b %d, %H:%M') }}</span>{% endif %}
+                    </div>
+                    <div class="ann-date">{{ ann.created_at.strftime('%b %d, %Y') }}</div>
+                    <div class="ann-body">{{ ann.content }}</div>
+                    {% if ann.leader_note %}<div class="ann-body" style="color:#6b7280; font-style:italic;">Your note: {{ ann.leader_note }}</div>{% endif %}
+                    <form method="POST" action="/leader/delete_announcement/{{ ann.id }}"
+                          onsubmit="return confirm('Delete this proposal?')" style="margin-top:6px;">
+                        <button class="btn-small btn-red">Delete</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if announcements %}
+                <div class="section-heading" style="margin-top:20px;">Live Announcements</div>
+                {% for ann in announcements %}
+                <div class="ann-admin-item">
+                    <div class="ann-title">{{ ann.title }}</div>
+                    <div class="ann-date">{{ ann.created_at.strftime('%b %d, %Y') }}</div>
+                    <div class="ann-body">{{ ann.content }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="empty-state" style="margin-top:12px;">No live announcements yet.</p>
+                {% endif %}
+            </div>
+
+            <div id="lptab-profile" class="lp-tab-content" style="padding-top:16px;">
+                <div class="section-heading">Edit Club Profile</div>
+                <form method="POST" action="/leader/edit_club">
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" rows="3" style="width:100%;">{{ club.description or '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>About Us</label>
+                        <textarea name="about_us" rows="5" placeholder="Tell members about your club..." style="width:100%;">{{ club.about_us or '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Cover Photo URL</label>
+                        <input type="url" name="cover_url" value="{{ club.cover_url or '' }}" placeholder="https://..." style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Logo Image URL</label>
+                        <input type="url" name="logo_url" value="{{ club.logo_url or '' }}" placeholder="https://..." style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Instagram URL</label>
+                        <input type="url" name="instagram" value="{{ club.instagram or '' }}" placeholder="https://instagram.com/..." style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Twitter / X URL</label>
+                        <input type="url" name="twitter" value="{{ club.twitter or '' }}" placeholder="https://twitter.com/..." style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Facebook URL</label>
+                        <input type="url" name="facebook" value="{{ club.facebook or '' }}" placeholder="https://facebook.com/..." style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Website URL</label>
+                        <input type="url" name="website" value="{{ club.website or '' }}" placeholder="https://..." style="width:100%;">
+                    </div>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>
+    function toggleAboutEdit(show) {
+        document.getElementById('about-view').style.display = show ? 'none' : 'block';
+        document.getElementById('about-edit').style.display = show ? 'block' : 'none';
+    }
+
+    document.querySelectorAll('.lp-tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var target = this.getAttribute('data-lptab');
+            document.querySelectorAll('.lp-tab-content').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.lp-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            var tab = document.getElementById(target);
+            if (tab) tab.classList.add('active');
+            this.classList.add('active');
+        });
+    });
+
+    var chatBox = document.querySelector('.chat-box');
+    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+    function sendReaction(clubId, msgId, emoji, btn) {
+        var form = new FormData();
+        form.append('emoji', emoji);
+        fetch('/club/' + clubId + '/react/' + msgId, {method: 'POST', body: form})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var container = document.getElementById('reactions-' + msgId);
+            if (!container) return;
+            var picker = document.getElementById('picker-' + msgId);
+            // Update picker button active states
+            if (picker) picker.querySelectorAll('.reaction-pick-btn').forEach(function(b) {
+                b.classList.toggle('reaction-pick-active', data.user_emojis.indexOf(b.dataset.emoji) !== -1);
+            });
+            // Sync reaction pills
+            var allEmojis = ['👍','❤️','😂','😮','👏'];
+            allEmojis.forEach(function(e) {
+                var count = data.counts[e] || 0;
+                var isActive = data.user_emojis.indexOf(e) !== -1;
+                var pill = container.querySelector('.reaction-pill[data-emoji="' + e + '"]');
+                if (count > 0) {
+                    if (!pill) {
+                        pill = document.createElement('button');
+                        pill.className = 'reaction-pill';
+                        pill.dataset.emoji = e;
+                        pill.innerHTML = e + '<span class="reaction-count"></span>';
+                        container.insertBefore(pill, picker);
+                        (function(em, el) { el.onclick = function() { sendReaction(clubId, msgId, em, el); }; })(e, pill);
+                    }
+                    pill.classList.toggle('reaction-pill-active', isActive);
+                    pill.querySelector('.reaction-count').textContent = count;
+                } else if (pill) {
+                    pill.remove();
+                }
+            });
+        }).catch(function() {});
+    }
+    </script>
+    <footer class="site-footer">&copy; 2026 LIU Clubs &mdash; Built by Fares Al Ahmed</footer>
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>
+    lucide.createIcons();
+    fetch('/mark_announcements_seen', {method: 'POST'});
+    </script>
+</body>
+</html>

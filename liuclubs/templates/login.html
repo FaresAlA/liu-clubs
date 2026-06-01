@@ -1,0 +1,124 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>Login — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="auth-page">
+    <div class="auth-split">
+
+        <div class="auth-left">
+            <div class="auth-left-content">
+                <div class="auth-left-logo">
+                    <img src="/static/liu-bg.png" alt="LIU" class="auth-left-logo-img">
+                </div>
+                <p>Connect · Grow · Belong</p>
+                <div class="auth-left-bar"></div>
+                <div class="auth-features">
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="users"></i></span>
+                        <div>
+                            <div class="af-title">4+ Active Clubs</div>
+                            <div class="af-desc">Find your community on campus</div>
+                        </div>
+                    </div>
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="calendar-days"></i></span>
+                        <div>
+                            <div class="af-title">Events Every Week</div>
+                            <div class="af-desc">Stay in the loop, never miss out</div>
+                        </div>
+                    </div>
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="handshake"></i></span>
+                        <div>
+                            <div class="af-title">Connect with Peers</div>
+                            <div class="af-desc">Meet students who share your passion</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-right">
+            <div class="auth-form-wrap">
+                <div class="auth-mobile-top">
+                    <img src="/static/liu-bg.png" alt="LIU" class="auth-mobile-logo">
+                    <span class="auth-mobile-tagline">Connect · Grow · Belong</span>
+                </div>
+                <h2>Welcome</h2>
+                <p class="auth-subtitle">Sign in to your account</p>
+
+                {% if request.args.get('success') %}
+                <div class="flash success">Account created! You can now log in.</div>
+                {% endif %}
+                {% if request.args.get('reset') %}
+                <div class="flash success">Password updated! You can now sign in.</div>
+                {% endif %}
+                {% if error and error_field not in ('email', 'password') %}
+                <div class="flash error">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="/login">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" required placeholder="Email address"
+                               autocomplete="email"
+                               class="{{ 'input-error' if error_field == 'email' else '' }}">
+                        {% if error_field == 'email' %}
+                        <div class="field-error">{{ error }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <div class="pw-label-row">
+                            <label>Password</label>
+                            <a href="/forgot-password" class="forgot-link">Forgot password?</a>
+                        </div>
+                        <div class="pw-wrap">
+                            <input type="password" name="password" required placeholder="••••••••"
+                                   autocomplete="current-password"
+                                   class="{{ 'input-error' if error_field == 'password' else '' }}">
+                            <button type="button" class="pw-toggle" onclick="togglePw(this)" aria-label="Show password"><i data-lucide="eye"></i></button>
+                        </div>
+                        {% if error_field == 'password' %}
+                        <div class="field-error">{{ error }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label class="remember-label">
+                            <input type="checkbox" name="remember_me" value="1">
+                            Remember me
+                            <span class="remember-tip" title="Keeps you signed in for 30 days">ℹ</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary full-width btn-signin" id="signinBtn">Sign In</button>
+                </form>
+
+                <div class="auth-links">
+                    <a href="/signup">Don't have an account? Sign up</a>
+                </div>
+                <div class="auth-trust">
+                    &copy; 2026 LIU Clubs &mdash; Built by Fares Al Ahmed
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+    <script>
+    document.querySelector('form').addEventListener('submit', function() {
+        var btn = document.getElementById('signinBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="btn-spinner"></span> Signing in…';
+    });
+    </script>
+</body>
+</html>

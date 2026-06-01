@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>Notifications — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo-link"><img src="/static/liu-bg.png" alt="LIU Clubs" class="nav-logo-img"></a>
+        </div>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">← Home</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+        <div class="card" style="max-width:680px; margin:0 auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <div class="section-heading" style="margin:0;">Notifications</div>
+                {% if notifications %}
+                <form method="POST" action="/notifications/mark_read">
+                    <button type="submit" class="btn-small btn-outline">Mark all read</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if notifications %}
+            <ul class="notif-list">
+                {% for n in notifications %}
+                {% set is_dm = n.message.startswith('Direct message from') %}
+                <li class="notif-item {% if not n.read %}notif-unread{% endif %}{% if is_dm %} notif-item-dm{% endif %}">
+                    <div class="notif-icon-col">
+                        <i data-lucide="{{ 'mail' if is_dm else 'megaphone' }}" class="notif-type-icon{% if is_dm %} notif-type-icon-dm{% endif %}"></i>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        {% if is_dm %}<div class="notif-personal-badge">Personal message</div>{% endif %}
+                        <div class="notif-message">
+                            {% if n.link %}
+                            <a href="{{ n.link }}" class="notif-link">{{ n.message }}</a>
+                            {% else %}
+                            {{ n.message }}
+                            {% endif %}
+                        </div>
+                        <div class="notif-time">{{ n.created_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No notifications yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

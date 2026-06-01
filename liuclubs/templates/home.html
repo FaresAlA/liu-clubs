@@ -1,0 +1,637 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>Home — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo-link"><img src="/static/liu-bg.png" alt="LIU Clubs" class="nav-logo-img"></a>
+        </div>
+
+        <nav class="nav-links">
+            <a href="#" class="nav-link active" data-section="section-home">
+                <i data-lucide="home"></i><span>Home</span>
+            </a>
+            <a href="#" class="nav-link" data-section="section-clubs">
+                <i data-lucide="users"></i><span>Clubs</span>
+            </a>
+            <a href="#" class="nav-link" data-section="section-announcements" id="ann-nav-link">
+                <i data-lucide="megaphone"></i><span>Announcements</span>
+                {% if new_ann_count > 0 %}<span class="nav-notif-dot"></span>{% endif %}
+            </a>
+            <a href="#" class="nav-link" data-section="section-calendar">
+                <i data-lucide="calendar-days"></i><span>Calendar</span>
+            </a>
+            {% if session.get('role') == 'admin' %}
+            <a href="/admin" class="nav-link nav-link-admin">
+                <i data-lucide="shield"></i><span>Admin Panel</span>
+                {% if notif_count > 0 %}<span class="nav-notif-dot"></span>{% endif %}
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="nav-right">
+            <div class="nav-bell-wrap" id="bellWrap">
+                <button class="nav-bell" id="bellBtn" type="button" title="Notifications" aria-label="Notifications">
+                    <i data-lucide="bell"></i>
+                    {% if unread_notif_count > 0 %}<span class="nav-notif-dot" id="bellDot"></span>{% endif %}
+                </button>
+                <div class="bell-dropdown" id="bellDropdown">
+                    <div class="bell-dropdown-header">Notifications</div>
+                    {% if recent_notifs %}
+                        {% for n in recent_notifs %}
+                        {% set is_dm = n.message.startswith('Direct message from') %}
+                        <a href="{{ n.link or '#' }}" class="bell-notif-item{% if is_dm %} bell-notif-dm{% endif %}{% if not n.read %} bell-notif-unread{% endif %}">
+                            <div class="bell-notif-row">
+                                <i data-lucide="{{ 'mail' if is_dm else 'megaphone' }}" class="bell-notif-type-icon{% if is_dm %} bell-notif-type-icon-dm{% endif %}"></i>
+                                <div class="bell-notif-body">
+                                    {% if is_dm %}<div class="bell-notif-personal-badge">Personal message</div>{% endif %}
+                                    <div class="bell-notif-msg">{{ n.message }}</div>
+                                    <div class="bell-notif-time">{{ n.created_at.strftime('%b %d at %I:%M %p') }}</div>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="bell-notif-empty">No notifications yet.</div>
+                    {% endif %}
+                    <a href="/notifications" class="bell-dropdown-footer">See all →</a>
+                </div>
+            </div>
+            <div class="nav-user-dropdown">
+                <button class="nav-user-btn" id="userDropdownBtn" type="button" aria-label="User menu" aria-haspopup="true" aria-expanded="false">
+                    <span class="nav-avatar {{ 'avatar-female' if user.gender == 'female' else 'avatar-male' }}">
+                        <i data-lucide="user"></i>
+                    </span>
+                    <span class="nav-user-name">{{ user.full_name.split()[0] }}</span>
+                    <i data-lucide="chevron-down" class="nav-chevron"></i>
+                </button>
+                <div class="nav-dropdown-menu" id="userDropdownMenu">
+                    <div class="nav-dropdown-header">
+                        <div class="nav-dropdown-name">{{ user.full_name }}</div>
+                        <div class="nav-dropdown-meta">{{ user.student_id }}{% if user.campus %} &bull; {{ user.campus }}{% endif %}</div>
+                    </div>
+                    <a href="/profile" class="nav-dropdown-item">
+                        <i data-lucide="user"></i> Profile
+                    </a>
+                    <a href="/logout" class="nav-dropdown-item nav-dropdown-logout"
+                       onclick="return confirm('Are you sure you want to logout?')">
+                        <i data-lucide="log-out"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div style="max-width:900px; margin:0 auto;">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div id="section-home" class="section active">
+            <div class="welcome-card card">
+                <h2>Welcome back, {{ user.full_name.split()[0] }}!</h2>
+
+                {% if my_clubs %}
+                <div class="my-clubs-row">
+                    <span class="label">Your clubs:</span>
+                    {% for c in my_clubs %}
+                    <a href="/club/{{ c.id }}" class="club-badge"><i data-lucide="{{ c.name | club_icon }}"></i> {{ c.name }}</a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="empty-hint" style="margin-top: 10px;">
+                    You haven't joined a club yet —
+                    <a href="#" class="nav-link-inline" data-section="section-clubs">check out the Clubs section!</a>
+                </p>
+                {% endif %}
+            </div>
+
+            {% if upcoming_events %}
+            <div class="card up-next-card">
+                <div class="section-heading" style="margin-bottom:10px;">Up Next</div>
+                <div class="up-next-slider">
+                    {% for e in upcoming_events[:5] %}
+                    <div class="up-next-slide {% if loop.first %}up-next-slide-active{% endif %}">
+                        {% if e.poster_url %}
+                        <div class="up-next-with-poster">
+                            <img src="{{ e.poster_url }}" alt="Event poster for {{ e.title }}" class="up-next-poster" loading="lazy">
+                            <div class="up-next-body">
+                                <strong class="up-next-title">{{ e.title }}</strong>
+                                <span class="event-meta">{{ e.date.strftime('%a, %b %d at %I:%M %p') }}
+                                    {% set ec = event_clubs.get(e.club_id) %}
+                                    {% if not e.club_id %} &bull; All Clubs{% elif ec %} &bull; {{ ec.name }}{% endif %}
+                                </span>
+                                {% if e.location %}<span class="event-meta"><i data-lucide="map-pin"></i> {{ e.location }}</span>{% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="up-next-body up-next-body-full">
+                            <strong class="up-next-title">{{ e.title }}</strong>
+                            <span class="event-meta">{{ e.date.strftime('%a, %b %d at %I:%M %p') }}
+                                {% set ec = event_clubs.get(e.club_id) %}
+                                {% if not e.club_id %} &bull; All Clubs{% elif ec %} &bull; {{ ec.name }}{% endif %}
+                            </span>
+                            {% if e.location %}<span class="event-meta"><i data-lucide="map-pin"></i> {{ e.location }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if upcoming_events[:5]|length > 1 %}
+                <div class="up-next-dots">
+                    {% for e in upcoming_events[:5] %}
+                    <span class="up-next-dot {% if loop.first %}up-next-dot-active{% endif %}" data-idx="{{ loop.index0 }}"></span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if liu_news %}
+            <div class="card liu-news-card">
+                <div class="section-heading">LIU News</div>
+                <div class="news-slider" id="newsSlider">
+                    {% for n in liu_news %}
+                    <div class="news-slide {% if loop.first %}news-slide-active{% endif %}">
+                        <div class="news-slide-title">{{ n.title }}</div>
+                        <div class="news-slide-body">{{ n.content }}</div>
+                        <div class="news-slide-date">{{ n.created_at.strftime('%b %d, %Y') }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if liu_news|length > 1 %}
+                <div class="news-dots" id="newsDots">
+                    {% for n in liu_news %}
+                    <span class="news-dot {% if loop.first %}news-dot-active{% endif %}" data-idx="{{ loop.index0 }}"></span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="section-clubs" class="section">
+            <div class="club-search-wrap">
+                <i data-lucide="search" class="club-search-icon"></i>
+                <input type="text" id="clubSearchInput" placeholder="Search clubs…" class="club-search-input" oninput="filterClubs(this.value)">
+            </div>
+
+            {% if my_clubs %}
+            {% set my_club = my_clubs[0] %}
+            {% set my_club_ids = my_clubs | map(attribute='id') | list %}
+            <div class="featured-club-card card">
+                <div class="featured-club-badge">Your Club</div>
+                <div class="featured-club-inner">
+                    <div class="featured-club-emoji"><i data-lucide="{{ my_club.name | club_icon }}"></i></div>
+                    <div class="featured-club-info">
+                        <div class="featured-club-name">{{ my_club.name }}</div>
+                        <div class="featured-club-desc">{{ my_club.description }}</div>
+                        <div class="featured-club-meta"><i data-lucide="users"></i> {{ club_member_counts.get(my_club.id, 0) }} members</div>
+                    </div>
+                </div>
+                <a href="/club/{{ my_club.id }}" class="featured-club-btn">Go to My Club →</a>
+            </div>
+
+            {% if my_clubs | length > 1 %}
+            <div class="other-clubs-label">Also a Member Of</div>
+            <div class="clubs-grid">
+                {% for mc in my_clubs[1:] %}
+                <div class="club-card club-card-browse card">
+                    <div class="club-card-header">
+                        <span class="club-emoji"><i data-lucide="{{ mc.name | club_icon }}"></i></span>
+                        <div>
+                            <div class="club-name">{{ mc.name }}</div>
+                            <div class="club-tagline">{{ (mc.description or '')[:65] }}{% if mc.description and mc.description|length > 65 %}...{% endif %}</div>
+                            <div class="club-member-count"><i data-lucide="users"></i> {{ club_member_counts.get(mc.id, 0) }} members</div>
+                        </div>
+                    </div>
+                    <div class="club-card-actions">
+                        <a href="/club/{{ mc.id }}" class="btn-outline">View →</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% set has_others = namespace(value=false) %}
+            {% for club in clubs %}{% if club.id not in my_club_ids %}{% set has_others.value = true %}{% endif %}{% endfor %}
+            {% if has_others.value %}
+            <div class="other-clubs-label">Browse Other Clubs</div>
+            <div class="clubs-grid">
+                {% for club in clubs %}
+                {% if club.id not in my_club_ids %}
+                <div class="club-card club-card-browse card">
+                    <div class="club-card-header">
+                        <span class="club-emoji"><i data-lucide="{{ club.name | club_icon }}"></i></span>
+                        <div>
+                            <div class="club-name">{{ club.name }}</div>
+                            <div class="club-tagline">{{ (club.description or '')[:65] }}{% if club.description and club.description|length > 65 %}...{% endif %}</div>
+                            <div class="club-member-count"><i data-lucide="users"></i> {{ club_member_counts.get(club.id, 0) }} members</div>
+                        </div>
+                    </div>
+                    <div class="club-card-actions">
+                        <button class="btn-outline about-btn" data-club="{{ club.id }}">About</button>
+                        <a href="/club/{{ club.id }}" class="btn-outline">View →</a>
+                    </div>
+                    <div class="club-about" id="about-{{ club.id }}">
+                        <p>{{ club.description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            {% if clubs %}
+            <div class="clubs-grid">
+                {% for club in clubs %}
+                <div class="club-card card">
+                    <div class="club-card-header">
+                        <span class="club-emoji"><i data-lucide="{{ club.name | club_icon }}"></i></span>
+                        <div>
+                            <div class="club-name">{{ club.name }}</div>
+                            <div class="club-tagline">{{ (club.description or '')[:65] }}{% if club.description and club.description|length > 65 %}...{% endif %}</div>
+                            <div class="club-member-count"><i data-lucide="users"></i> {{ club_member_counts.get(club.id, 0) }} members</div>
+                        </div>
+                    </div>
+                    <div class="club-card-actions">
+                        <button class="btn-outline about-btn" data-club="{{ club.id }}">About</button>
+                        <a href="/club/{{ club.id }}" class="btn-outline">View Club →</a>
+                    </div>
+                    <div class="club-about" id="about-{{ club.id }}">
+                        <p>{{ club.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="card" style="text-align:center; padding:40px 20px;">
+                <p class="empty-hint" style="font-size:15px;">No clubs available yet. Check back soon!</p>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div id="section-announcements" class="section">
+            <div class="section-title">Announcements</div>
+            {% if announcements %}
+                {% for ann in announcements %}
+                {% set _is_new = user and (not user.last_seen_announcements or ann.created_at > user.last_seen_announcements) %}
+                <div class="card announcement{% if _is_new %} ann-item-new{% endif %}">
+                    <div class="ann-title">{% if ann.pinned %}<i data-lucide="pin" class="ann-pin-icon"></i> {% endif %}{{ ann.title }}</div>
+                    <div class="ann-date">{{ ann.created_at.strftime('%b %d, %Y') }}</div>
+                    <div class="ann-body">{{ ann.content }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="card"><p class="empty-hint">Nothing posted yet.</p></div>
+            {% endif %}
+        </div>
+
+        <div id="section-calendar" class="section">
+            <div class="calendar-filter-row">
+                <div class="section-title" style="margin:0;">Upcoming Events</div>
+                <select id="campusFilter" class="campus-filter-select" onchange="filterEventsByCampus(this.value)">
+                    <option value="">All Campuses</option>
+                    {% for cp in campuses %}
+                    <option value="{{ cp }}" {% if cp == user.campus %}selected{% endif %}>{{ cp }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if all_events %}
+            <div class="card" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                <table class="events-table" id="upcomingEventsTable">
+                    <thead>
+                        <tr>
+                            <th>Poster</th>
+                            <th>Event</th>
+                            <th>Club</th>
+                            <th>Date &amp; Time</th>
+                            <th>Location</th>
+                            <th>Campus</th>
+                            <th>RSVP</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in all_events %}
+                        <tr data-campus="{{ e.campus or '' }}">
+                            <td>
+                                {% if e.poster_url %}
+                                <a href="{{ e.poster_url }}" target="_blank" rel="noopener noreferrer">
+                                    <img src="{{ e.poster_url }}" alt="Event poster for {{ e.title }}" class="calendar-poster-thumb" loading="lazy">
+                                </a>
+                                {% else %}
+                                <span style="color:#d1d5db;">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ e.title }}</td>
+                            <td>
+                                {% if not e.club_id %}All Clubs
+                                {% elif e.club_id in event_clubs %}{{ event_clubs[e.club_id].name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ e.date.strftime('%b %d, %Y') }}<br><span style="color:#6b7280;font-size:12px;">{{ e.date.strftime('%I:%M %p') }}</span></td>
+                            <td>{{ e.location or '—' }}</td>
+                            <td>{{ e.campus or '—' }}</td>
+                            <td>
+                                {% set rsvp_count = rsvp_counts.get(e.id, 0) %}
+                                {% set wl_count = waitlist_counts.get(e.id, 0) %}
+                                {% set already_rsvp = e.id in user_rsvp_ids %}
+                                {% set on_waitlist = e.id in user_waitlist_ids %}
+                                {% set is_full = e.rsvp_limit and rsvp_count >= e.rsvp_limit %}
+                                {% if already_rsvp %}
+                                <button class="rsvp-btn rsvp-btn-active"
+                                    data-event-id="{{ e.id }}" data-rsvped="true"
+                                    data-count="{{ rsvp_count }}" data-limit="{{ e.rsvp_limit or '' }}"
+                                    data-wl-count="{{ wl_count }}"
+                                    onclick="toggleRSVP(this)">
+                                    <span class="rsvp-label">✓ Going</span>{% if e.rsvp_limit %}<span class="rsvp-count">({{ rsvp_count }}/{{ e.rsvp_limit }})</span>{% elif rsvp_count %}<span class="rsvp-count">({{ rsvp_count }})</span>{% endif %}
+                                </button>
+                                {% elif on_waitlist %}
+                                <button class="waitlist-btn waitlist-btn-active"
+                                    data-event-id="{{ e.id }}" data-waitlisted="true"
+                                    data-wl-count="{{ wl_count }}"
+                                    onclick="toggleWaitlist(this)">
+                                    <span class="wl-label">⏳ Waitlisted</span><span class="wl-count">(#{{ wl_count }})</span>
+                                </button>
+                                {% elif is_full %}
+                                <button class="waitlist-btn"
+                                    data-event-id="{{ e.id }}" data-waitlisted="false"
+                                    data-wl-count="{{ wl_count }}"
+                                    onclick="toggleWaitlist(this)">
+                                    <span class="wl-label">Join Waitlist</span>{% if wl_count %}<span class="wl-count">({{ wl_count }} waiting)</span>{% endif %}
+                                </button>
+                                {% else %}
+                                <button class="rsvp-btn"
+                                    data-event-id="{{ e.id }}" data-rsvped="false"
+                                    data-count="{{ rsvp_count }}" data-limit="{{ e.rsvp_limit or '' }}"
+                                    data-wl-count="{{ wl_count }}"
+                                    onclick="toggleRSVP(this)">
+                                    <span class="rsvp-label">RSVP</span>{% if e.rsvp_limit %}<span class="rsvp-count">({{ rsvp_count }}/{{ e.rsvp_limit }})</span>{% elif rsvp_count %}<span class="rsvp-count">({{ rsvp_count }})</span>{% endif %}
+                                </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="cal-drop-wrap">
+                                    <button class="add-to-cal-btn" onclick="toggleCalDrop(this)" type="button">
+                                        <i data-lucide="calendar-plus"></i> Add
+                                    </button>
+                                    <div class="cal-drop">
+                                        <a href="{{ google_cal_urls[e.id] }}" target="_blank" rel="noopener noreferrer" class="cal-drop-item">
+                                            <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" width="14" height="14" alt=""> Google Calendar
+                                        </a>
+                                        <a href="/event/{{ e.id }}/calendar.ics" class="cal-drop-item">
+                                            <i data-lucide="download" style="width:13px;height:13px;"></i> Apple / Outlook (.ics)
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card"><p class="empty-hint">No upcoming events.</p></div>
+            {% endif %}
+
+            {% if past_events %}
+            <div class="section-title" style="margin-top:24px;">Past Events</div>
+            <div class="card" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                <table class="events-table">
+                    <thead>
+                        <tr>
+                            <th>Poster</th>
+                            <th>Event</th>
+                            <th>Club</th>
+                            <th>Date</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in past_events %}
+                        <tr>
+                            <td>
+                                {% if e.poster_url %}
+                                <a href="{{ e.poster_url }}" target="_blank" rel="noopener noreferrer">
+                                    <img src="{{ e.poster_url }}" alt="Event poster for {{ e.title }}" class="calendar-poster-thumb" loading="lazy" style="opacity:0.6;">
+                                </a>
+                                {% else %}
+                                <span style="color:#d1d5db;">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#9ca3af;">{{ e.title }}</td>
+                            <td>
+                                {% if not e.club_id %}All Clubs
+                                {% elif e.club_id in event_clubs %}{{ event_clubs[e.club_id].name }}
+                                {% endif %}
+                            </td>
+                            <td style="color:#9ca3af;">{{ e.date.strftime('%b %d, %Y') }}</td>
+                            <td style="color:#9ca3af;">{{ e.location or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>
+    lucide.createIcons();
+
+    var _bellBtn = document.getElementById('bellBtn');
+    var _bellDrop = document.getElementById('bellDropdown');
+    if (_bellBtn && _bellDrop) {
+        _bellBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOpen = _bellDrop.classList.toggle('open');
+            if (isOpen) {
+                fetch('/mark_notif_read', {method: 'POST'});
+                var dot = document.getElementById('bellDot');
+                if (dot) dot.remove();
+                document.querySelectorAll('.bell-notif-unread').forEach(function(el) {
+                    el.classList.remove('bell-notif-unread');
+                });
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('bellWrap').contains(e.target)) {
+                _bellDrop.classList.remove('open');
+            }
+        });
+    }
+
+    var _annLink = document.getElementById('ann-nav-link');
+    if (_annLink) {
+        _annLink.addEventListener('click', function() {
+            var annDot = this.querySelector('.nav-notif-dot');
+            if (annDot) annDot.remove();
+            var bellDot = document.getElementById('bellDot');
+            if (bellDot) bellDot.remove();
+            fetch('/mark_announcements_seen', {method: 'POST'});
+            fetch('/mark_notif_read', {method: 'POST'});
+        });
+    }
+
+    function filterClubs(q) {
+        q = q.toLowerCase().trim();
+        document.querySelectorAll('.club-card, .featured-club-card').forEach(function(card) {
+            var name = (card.querySelector('.club-name, .featured-club-name') || {}).textContent || '';
+            var desc = (card.querySelector('.club-tagline, .featured-club-desc') || {}).textContent || '';
+            var match = !q || name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+            card.style.display = match ? '' : 'none';
+        });
+    }
+
+    function toggleCalDrop(btn) {
+        var drop = btn.nextElementSibling;
+        if (!drop) return;
+        var open = drop.classList.toggle('cal-drop-open');
+        if (open) {
+            if (window.lucide) lucide.createIcons({ nodes: [drop] });
+            setTimeout(function() {
+                document.addEventListener('click', function _close(e) {
+                    if (!btn.closest('.cal-drop-wrap').contains(e.target)) {
+                        drop.classList.remove('cal-drop-open');
+                        document.removeEventListener('click', _close);
+                    }
+                });
+            }, 0);
+        }
+    }
+
+    function filterEventsByCampus(campus) {
+        document.querySelectorAll('#upcomingEventsTable tbody tr').forEach(function(row) {
+            var rowCampus = row.getAttribute('data-campus') || '';
+            row.style.display = (!campus || rowCampus === campus || rowCampus === '') ? '' : 'none';
+        });
+    }
+
+    (function() {
+        var sel = document.getElementById('campusFilter');
+        if (sel && sel.value) filterEventsByCampus(sel.value);
+    })();
+
+    function toggleRSVP(btn) {
+        if (btn.disabled) return;
+        var eventId = btn.dataset.eventId;
+        btn.disabled = true;
+        fetch('/event/' + eventId + '/rsvp', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            var rsvped = data.rsvped;
+            var count = data.count;
+            var limit = data.rsvp_limit;
+            var wlCount = data.waitlist_count || 0;
+            var isFull = limit && count >= limit;
+            if (data.error === 'full' && !rsvped) {
+                _morphToWaitlist(btn, eventId, wlCount);
+                return;
+            }
+            if (!rsvped && isFull) {
+                _morphToWaitlist(btn, eventId, wlCount);
+                return;
+            }
+            btn.dataset.rsvped = rsvped ? 'true' : 'false';
+            btn.dataset.count = count;
+            btn.classList.toggle('rsvp-btn-active', rsvped);
+            btn.querySelector('.rsvp-label').textContent = rsvped ? '✓ Going' : 'RSVP';
+            var countEl = btn.querySelector('.rsvp-count');
+            if (limit) {
+                if (!countEl) { countEl = document.createElement('span'); countEl.className = 'rsvp-count'; btn.appendChild(countEl); }
+                countEl.textContent = '(' + count + '/' + limit + ')';
+            } else if (count > 0) {
+                if (!countEl) { countEl = document.createElement('span'); countEl.className = 'rsvp-count'; btn.appendChild(countEl); }
+                countEl.textContent = '(' + count + ')';
+            } else {
+                if (countEl) countEl.textContent = '';
+            }
+            btn.disabled = false;
+        })
+        .catch(function() { btn.disabled = false; });
+    }
+
+    function _morphToWaitlist(btn, eventId, wlCount) {
+        btn.className = 'waitlist-btn';
+        btn.removeAttribute('onclick');
+        btn.setAttribute('onclick', 'toggleWaitlist(this)');
+        btn.dataset.eventId = eventId;
+        btn.dataset.waitlisted = 'false';
+        btn.dataset.wlCount = wlCount;
+        btn.innerHTML = '<span class="wl-label">Join Waitlist</span>' +
+            (wlCount ? '<span class="wl-count">(' + wlCount + ' waiting)</span>' : '');
+        btn.disabled = false;
+    }
+
+    function toggleWaitlist(btn) {
+        if (btn.disabled) return;
+        var eventId = btn.dataset.eventId;
+        btn.disabled = true;
+        fetch('/event/' + eventId + '/waitlist', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.rsvped) {
+                btn.className = 'rsvp-btn rsvp-btn-active';
+                btn.removeAttribute('onclick');
+                btn.setAttribute('onclick', 'toggleRSVP(this)');
+                btn.dataset.rsvped = 'true';
+                btn.dataset.count = data.count || 0;
+                btn.dataset.limit = data.rsvp_limit || '';
+                btn.innerHTML = '<span class="rsvp-label">✓ Going</span>';
+                if (data.rsvp_limit) {
+                    var cspan = document.createElement('span');
+                    cspan.className = 'rsvp-count';
+                    cspan.textContent = '(' + data.count + '/' + data.rsvp_limit + ')';
+                    btn.appendChild(cspan);
+                }
+                btn.disabled = false;
+                return;
+            }
+            var waitlisted = data.on_waitlist;
+            var wlCount = data.waitlist_count || 0;
+            btn.dataset.waitlisted = waitlisted ? 'true' : 'false';
+            btn.classList.toggle('waitlist-btn-active', waitlisted);
+            var lbl = btn.querySelector('.wl-label');
+            var cnt = btn.querySelector('.wl-count');
+            if (lbl) lbl.textContent = waitlisted ? '⏳ Waitlisted' : 'Join Waitlist';
+            if (waitlisted) {
+                if (!cnt) { cnt = document.createElement('span'); cnt.className = 'wl-count'; btn.appendChild(cnt); }
+                cnt.textContent = '(#' + wlCount + ')';
+            } else {
+                if (cnt) cnt.textContent = wlCount ? '(' + wlCount + ' waiting)' : '';
+            }
+            btn.disabled = false;
+        })
+        .catch(function() { btn.disabled = false; });
+    }
+    </script>
+</body>
+</html>

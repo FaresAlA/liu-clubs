@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90" width="220" height="90">
+  <style>
+    .liu-text {
+      font-family: 'Arial Black', 'Franklin Gothic Heavy', Impact, sans-serif;
+      font-weight: 900;
+      font-size: 82px;
+      letter-spacing: 2px;
+      fill: #1B4FAA;
+      stroke: #FFD700;
+      stroke-width: 6px;
+      stroke-linejoin: round;
+      paint-order: stroke fill;
+    }
+  </style>
+  <text class="liu-text" x="110" y="82" text-anchor="middle">LIU</text>
+</svg>

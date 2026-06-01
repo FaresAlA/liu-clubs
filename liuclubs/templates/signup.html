@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>Sign Up — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="auth-page">
+    <div class="auth-split">
+
+        <div class="auth-left">
+            <div class="auth-left-content">
+                <div class="auth-left-logo">
+                    <img src="/static/liu-bg.png" alt="LIU" class="auth-left-logo-img">
+                </div>
+                <p>Connect · Grow · Belong</p>
+                <div class="auth-left-bar"></div>
+                <div class="auth-features">
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="users"></i></span>
+                        <div>
+                            <div class="af-title">4+ Active Clubs</div>
+                            <div class="af-desc">Find your community on campus</div>
+                        </div>
+                    </div>
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="calendar-days"></i></span>
+                        <div>
+                            <div class="af-title">Events Every Week</div>
+                            <div class="af-desc">Stay in the loop, never miss out</div>
+                        </div>
+                    </div>
+                    <div class="auth-feature-card">
+                        <span class="af-icon"><i data-lucide="handshake"></i></span>
+                        <div>
+                            <div class="af-title">Connect with Peers</div>
+                            <div class="af-desc">Meet students who share your passion</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-right">
+            <div class="auth-form-wrap">
+                <div class="auth-mobile-top">
+                    <img src="/static/liu-bg.png" alt="LIU" class="auth-mobile-logo">
+                    <span class="auth-mobile-tagline">Connect · Grow · Belong</span>
+                </div>
+                <h2>Create account</h2>
+                <p class="auth-subtitle">Join the LIU student community</p>
+
+                {% if error %}
+                <div class="flash error">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="/signup">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" name="full_name" required placeholder="Your full name" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Student ID</label>
+                        <input type="text" name="student_id" required placeholder="32330000" maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" required placeholder="your@email.com" maxlength="100" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <div class="pw-wrap">
+                            <input type="password" name="password" required placeholder="••••••••" autocomplete="new-password">
+                            <button type="button" class="pw-toggle" onclick="togglePw(this)" aria-label="Show password"><i data-lucide="eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <div class="pw-wrap">
+                            <input type="password" name="confirm_password" required placeholder="••••••••" autocomplete="new-password">
+                            <button type="button" class="pw-toggle" onclick="togglePw(this)" aria-label="Show password"><i data-lucide="eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Campus</label>
+                        <select name="campus" required>
+                            <option value="">— Select your campus —</option>
+                            <option>Beirut</option>
+                            <option>Bekaa</option>
+                            <option>Saida</option>
+                            <option>Nabatieh</option>
+                            <option>Tripoli</option>
+                            <option>Mount Lebanon</option>
+                            <option>Tyre</option>
+                            <option>Rayak</option>
+                            <option>Akkar</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <div class="gender-toggle">
+                            <label class="gender-opt">
+                                <input type="radio" name="gender" value="male" checked>
+                                <span class="gender-opt-box avatar-male">Male</span>
+                            </label>
+                            <label class="gender-opt">
+                                <input type="radio" name="gender" value="female">
+                                <span class="gender-opt-box avatar-female">Female</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="captcha-ans">Quick check: what is {{ captcha_q }}?</label>
+                        <input type="number" id="captcha-ans" name="captcha_ans" required placeholder="Your answer" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn-primary full-width">Create Account</button>
+                </form>
+
+                <div class="auth-links">
+                    <a href="/login">Already have an account? Sign in</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

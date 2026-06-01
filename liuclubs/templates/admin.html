@@ -1,0 +1,968 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>Admin Dashboard — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo-link"><img src="/static/liu-bg.png" alt="LIU Clubs" class="nav-logo-img"></a>
+            <span class="nav-user">Admin Panel</span>
+        </div>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">← View Site</a>
+            <a href="/logout" class="nav-link" onclick="return confirm('Are you sure you want to logout?')">Logout</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="flash {{ category }}" style="max-width:900px; margin:0 auto 12px;">{{ message }}</div>
+        {% endfor %}
+
+        <div class="dash-overview">
+            <div class="dash-left">
+                <div class="stat-card dash-card-lg">
+                    <div class="stat-value">{{ total_users }}</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="dash-mid-row">
+                    <div class="stat-card dash-card-md">
+                        <div class="stat-value">{{ clubs|length }}</div>
+                        <div class="stat-label">Clubs</div>
+                    </div>
+                    <div class="stat-card dash-card-md">
+                        <div class="stat-value">{{ live_event_count }}</div>
+                        <div class="stat-label">Approved Events</div>
+                    </div>
+                </div>
+                <div class="stat-card dash-card-sm2">
+                    <div class="stat-value">{{ announcements|length }}</div>
+                    <div class="stat-label">Announcements</div>
+                </div>
+            </div>
+            <div class="dash-pending-panel">
+                <div class="dash-pending-title">
+                    <i data-lucide="alert-circle" style="width:12px;height:12px;"></i> Pending Actions
+                </div>
+                <div class="dash-pending-item">
+                    <div class="dash-pending-num">{{ pending_count }}</div>
+                    <div class="dash-pending-lbl">Member Requests</div>
+                </div>
+                <div class="dash-pending-hr"></div>
+                <div class="dash-pending-item">
+                    <div class="dash-pending-num">{{ pending_event_proposals|length + pending_ann_proposals|length }}</div>
+                    <div class="dash-pending-lbl">Proposals</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-tabs">
+            <button type="button" class="tab-btn active" data-tab="tab-members">
+                Members {% if pending_count > 0 %}<span class="pending-badge">{{ pending_count }}</span>{% endif %}
+            </button>
+            <button type="button" class="tab-btn" data-tab="tab-clubs">Clubs{% if is_super_admin and clear_chat_clubs %}<span class="pending-badge">{{ clear_chat_clubs|length }}</span>{% endif %}</button>
+            <button type="button" class="tab-btn" data-tab="tab-events">Events{% if pending_event_proposals %}<span class="pending-badge">{{ pending_event_proposals|length }}</span>{% endif %}</button>
+            <button type="button" class="tab-btn" data-tab="tab-news">LIU News</button>
+            <button type="button" class="tab-btn" data-tab="tab-announcements">Announcements{% if pending_ann_proposals %}<span class="pending-badge">{{ pending_ann_proposals|length }}</span>{% endif %}</button>
+            <button type="button" class="tab-btn" data-tab="tab-reports">Reports</button>
+            {% if is_super_admin %}
+            <button type="button" class="tab-btn" data-tab="tab-admins"><i data-lucide="zap"></i> Admins</button>
+            {% endif %}
+        </div>
+
+
+        <div id="tab-members" class="tab-content active card">
+            <div class="section-heading">All Members &amp; Requests</div>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Student ID</th>
+                        <th>Email</th>
+                        <th>Campus</th>
+                        <th>Club</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in users_list %}
+                    <tr id="urow-{{ entry.user.id }}">
+                        <td>
+                            {{ entry.user.full_name }}
+                            {% if entry.user.role == 'admin' %}<span class="{{ 'member-host-badge' if entry.user.email == super_admin_email else 'member-admin-badge' }}">{{ 'Host' if entry.user.email == super_admin_email else 'Admin' }}</span>{% endif %}
+                            {% if leader_map.get(entry.user.id) %}<span class="member-leader-badge">Club Leader</span>{% endif %}
+                        </td>
+                        <td>{{ entry.user.student_id }}</td>
+                        <td>{{ entry.user.email }}</td>
+                        <td>{{ entry.user.campus or '—' }}</td>
+                        <td style="vertical-align:top">
+                            {% if entry.memberships %}
+                                {% for m in entry.memberships %}
+                                <div{% if not loop.first %} style="margin-top:5px; padding-top:5px; border-top:1px solid #f3f4f6;"{% endif %}>{{ m.club.name if m.club else '—' }}</div>
+                                {% endfor %}
+                            {% else %}
+                            <span style="color:#9ca3af;">No club</span>
+                            {% endif %}
+                        </td>
+                        <td style="vertical-align:top">
+                            {% if entry.user.role == 'admin' %}
+                            <span style="color:#9ca3af;">—</span>
+                            {% elif entry.memberships %}
+                                {% for m in entry.memberships %}
+                                <div{% if not loop.first %} style="margin-top:5px; padding-top:5px; border-top:1px solid #f3f4f6;"{% endif %}>
+                                    <span class="status-{{ m.membership.status }}">{{ m.membership.status }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <span style="color:#9ca3af;">—</span>
+                            {% endif %}
+                        </td>
+                        {% set can_act = entry.user.email != super_admin_email and (entry.user.role != 'admin' or is_super_admin) %}
+                        <td class="action-cell" style="vertical-align:top">
+                            {% if can_act %}
+                            {% for m in entry.memberships %}
+                            <div style="display:flex; flex-wrap:wrap; gap:3px;{% if not loop.first %} margin-top:5px; padding-top:5px; border-top:1px solid #f3f4f6;{% endif %}">
+                                {% if m.membership.status == 'pending' %}
+                                <form method="POST" action="/admin/approve/{{ m.membership.id }}" style="display:inline">
+                                    <button class="btn-small btn-green">Approve</button>
+                                </form>
+                                <form method="POST" action="/admin/reject/{{ m.membership.id }}" style="display:inline">
+                                    <button class="btn-small btn-red">Reject</button>
+                                </form>
+                                {% endif %}
+                                <form method="POST" action="/admin/remove_from_club/{{ m.membership.id }}" style="display:inline">
+                                    <button class="btn-small btn-red">Remove</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                            <div style="display:flex; flex-wrap:wrap; gap:3px;{% if entry.memberships %} margin-top:6px; padding-top:6px; border-top:1px solid #e5e7eb;{% endif %}">
+                                {% if entry.user.role != 'admin' %}
+                                <form method="POST" action="/admin/delete_user/{{ entry.user.id }}" style="display:inline"
+                                      onsubmit="return confirm('Delete this account permanently?')">
+                                    <button class="btn-small btn-red">Delete Account</button>
+                                </form>
+                                {% endif %}
+                                <button class="btn-small btn-outline" onclick="toggleResetPw({{ entry.user.id }})">Reset PW</button>
+                            </div>
+                            <div id="resetform-{{ entry.user.id }}" style="display:none; margin-top:6px; width:100%;">
+                                <form method="POST" action="/admin/reset_password/{{ entry.user.id }}" class="form-row" style="flex-wrap:wrap; gap:4px;">
+                                    <input type="password" name="new_password" placeholder="New password (min 6)" required minlength="6" style="flex:1; min-width:130px;">
+                                    <button type="submit" class="btn-small btn-green">Set</button>
+                                    <button type="button" class="btn-small btn-outline" onclick="toggleResetPw({{ entry.user.id }})">Cancel</button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <div id="tab-clubs" class="tab-content card">
+
+            {% if is_super_admin and clear_chat_clubs %}
+            <div class="section-heading" style="color:#d97706; display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                <i data-lucide="trash-2"></i> Chat Clear Requests
+                <span class="pending-badge">{{ clear_chat_clubs|length }}</span>
+            </div>
+            <table class="admin-table" style="margin-bottom:24px;">
+                <thead>
+                    <tr><th>Club</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for c in clear_chat_clubs %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td class="action-cell">
+                            <form method="POST" action="/admin/clear_chat/{{ c.id }}" style="display:inline"
+                                  onsubmit="return confirm('Clear all chat messages for this club? This cannot be undone.')">
+                                <button class="btn-small btn-red">Clear Chat</button>
+                            </form>
+                            <form method="POST" action="/admin/dismiss_clear_chat/{{ c.id }}" style="display:inline">
+                                <button class="btn-small btn-outline">Dismiss</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div class="section-heading">Clubs</div>
+
+            <div class="inline-form">
+                <strong>Add New Club</strong>
+                <form method="POST" action="/admin/add_club" class="form-row">
+                    <input type="text" name="name" placeholder="Club name" required>
+                    <input type="text" name="description" placeholder="Description" style="width:300px;">
+                    <button type="submit" class="btn-primary">Add</button>
+                </form>
+            </div>
+
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Icon</th><th>Name</th><th>Description</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for club in clubs %}
+                    <tr>
+                        <td style="font-size:20px; color:#1B2A4A;"><i data-lucide="{{ club.name | club_icon }}"></i></td>
+                        <td>{{ club.name }}</td>
+                        <td>{{ club.description[:80] if club.description else '' }}{% if club.description and club.description|length > 80 %}...{% endif %}</td>
+                        <td>
+                            <button class="btn-small btn-outline" onclick="toggleClubEdit({{ club.id }})">Edit</button>
+                            <button class="btn-small btn-outline" onclick="toggleLeaderEdit({{ club.id }})">Club Leader</button>
+                            <form method="POST" action="/admin/toggle_recruitment/{{ club.id }}" style="display:inline">
+                                <button type="submit" class="btn-small {% if club.accepting_members %}btn-outline{% else %}btn-green{% endif %}">
+                                    {% if club.accepting_members %}<i data-lucide="lock" style="width:12px;height:12px;vertical-align:middle;"></i> Close{% else %}<i data-lucide="lock-open" style="width:12px;height:12px;vertical-align:middle;"></i> Open{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="/admin/delete_club/{{ club.id }}" style="display:inline"
+                                  onsubmit="return confirm('Delete this club and all its data? This cannot be undone.')">
+                                <button class="btn-small btn-red">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr id="club-edit-{{ club.id }}" style="display:none;" class="edit-row">
+                        <td colspan="4">
+                            <form method="POST" action="/admin/edit_club/{{ club.id }}">
+                                <div class="form-row" style="margin-bottom:8px;">
+                                    <input type="text" name="name" value="{{ club.name }}" required placeholder="Club name">
+                                    <input type="text" name="description" value="{{ club.description or '' }}" style="width:300px;" placeholder="Description">
+                                </div>
+                                <div class="form-row" style="margin-bottom:8px;">
+                                    <input type="url" name="cover_url" value="{{ club.cover_url or '' }}" style="width:280px;" placeholder="Cover photo URL">
+                                    <input type="url" name="logo_url" value="{{ club.logo_url or '' }}" style="width:280px;" placeholder="Logo image URL">
+                                </div>
+                                <div class="form-row" style="margin-bottom:8px;">
+                                    <input type="url" name="instagram" value="{{ club.instagram or '' }}" placeholder="Instagram URL" style="width:180px;">
+                                    <input type="url" name="twitter" value="{{ club.twitter or '' }}" placeholder="Twitter URL" style="width:180px;">
+                                    <input type="url" name="facebook" value="{{ club.facebook or '' }}" placeholder="Facebook URL" style="width:180px;">
+                                    <input type="url" name="website" value="{{ club.website or '' }}" placeholder="Website URL" style="width:180px;">
+                                </div>
+                                <button type="submit" class="btn-small btn-green">Save</button>
+                                <button type="button" class="btn-small btn-outline" onclick="toggleClubEdit({{ club.id }})">Cancel</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr id="club-leader-{{ club.id }}" style="display:none;" class="edit-row">
+                        <td colspan="4">
+                            <form method="POST" action="/admin/set_president/{{ club.id }}" class="form-row">
+                                <label style="font-size:13px; color:#1B2A4A; font-weight:600;">Set Club Leader:</label>
+                                <select name="president_id">
+                                    <option value="">— No Club Leader —</option>
+                                    {% for u in club_approved_users.get(club.id, []) %}
+                                    <option value="{{ u.id }}" {% if club.president_id == u.id %}selected{% endif %}>{{ u.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn-small btn-green">Assign</button>
+                                <button type="button" class="btn-small btn-outline" onclick="toggleLeaderEdit({{ club.id }})">Cancel</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <div id="tab-events" class="tab-content card">
+
+            {% if pending_event_proposals %}
+            <div class="section-heading" style="color:#d97706; display:flex; align-items:center; gap:6px;">
+                <i data-lucide="clock"></i> Pending Event Proposals
+                <span class="pending-badge">{{ pending_event_proposals|length }}</span>
+            </div>
+            <table class="admin-table" style="margin-bottom:24px;">
+                <thead>
+                    <tr><th>Title</th><th>Club</th><th>Date</th><th>Proposed By</th><th>Note</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                {% for e in pending_event_proposals %}
+                <tr>
+                    <td>{{ e.title }}</td>
+                    <td>{{ proposal_clubs[e.club_id].name if e.club_id in proposal_clubs else '—' }}</td>
+                    <td>{{ e.date.strftime('%b %d, %Y %I:%M %p') }}</td>
+                    <td>{{ proposers[e.proposed_by].full_name if e.proposed_by in proposers else '—' }}{% if e.proposed_by in proposers %}<span class="member-leader-badge" style="margin-left:5px;">Club Leader</span>{% endif %}</td>
+                    <td style="max-width:180px; white-space:normal; color:#6b7280; font-style:italic;">{{ e.leader_note or '—' }}</td>
+                    <td class="action-cell">
+                        <form method="POST" action="/admin/approve_event_proposal/{{ e.id }}" style="display:inline">
+                            <button class="btn-small btn-green">Approve</button>
+                        </form>
+                        <form method="POST" action="/admin/reject_event_proposal/{{ e.id }}" style="display:inline">
+                            <button class="btn-small btn-red">Reject</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div class="section-heading">Events</div>
+
+            <div class="inline-form">
+                <strong>Add New Event</strong>
+                <form method="POST" action="/admin/add_event" enctype="multipart/form-data">
+                    <div class="form-row" style="margin-bottom:8px;">
+                        <input type="text" name="title" placeholder="Event title" required>
+                        <select name="club_id">
+                            <option value="">All Clubs</option>
+                            {% for club in clubs %}
+                            <option value="{{ club.id }}">{{ club.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="datetime-local" name="date" required>
+                        <input type="text" name="location" placeholder="Location">
+                    </div>
+                    <div class="form-row" style="margin-bottom:8px;">
+                        <select name="campus">
+                            <option value="">All Campuses</option>
+                            {% for cp in campuses %}
+                            <option value="{{ cp }}">{{ cp }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="rsvp_limit" min="1" placeholder="RSVP limit (optional)">
+                    </div>
+                    <div class="form-row" style="align-items:center; gap:12px;">
+                        <label style="font-size:13px; color:#555; white-space:nowrap;">Poster (optional):</label>
+                        <input type="file" name="poster_file" accept="image/*" style="font-size:13px;">
+                        <button type="submit" class="btn-primary">Add</button>
+                    </div>
+                </form>
+            </div>
+
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Title</th><th>Club</th><th>Date</th><th>Location</th><th>Attending</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for e in events %}
+                    {% set rcount = event_rsvp_counts.get(e.id, 0) %}
+                    {% set wlcount = event_waitlist_counts.get(e.id, 0) %}
+                    <tr>
+                        <td>{{ e.title }}</td>
+                        <td>{% if not e.club_id %}All Clubs{% else %}{{ event_clubs[e.club_id].name if e.club_id in event_clubs else '—' }}{% endif %}</td>
+                        <td>{{ e.date.strftime('%b %d, %Y %I:%M %p') }}</td>
+                        <td>{{ e.location or '—' }}</td>
+                        <td>
+                            {% if rcount > 0 %}
+                            <button class="btn-small btn-outline rsvp-attendees-btn" onclick="toggleAttendees({{ e.id }})">
+                                👥 {{ rcount }}{% if e.rsvp_limit %}/{{ e.rsvp_limit }}{% endif %}
+                            </button>
+                            {% else %}
+                            <span style="color:#9ca3af; font-size:12px;">0{% if e.rsvp_limit %}/{{ e.rsvp_limit }}{% endif %}</span>
+                            {% endif %}
+                            {% if wlcount > 0 %}<span class="badge-waitlist" title="Waitlist">⏳ {{ wlcount }}</span>{% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-small btn-outline" onclick="toggleEventEdit({{ e.id }})">Edit</button>
+                            <form method="POST" action="/admin/delete_event/{{ e.id }}" style="display:inline"
+                                  onsubmit="return confirm('Delete this event?')">
+                                <button class="btn-small btn-red">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% if rcount > 0 %}
+                    <tr id="event-attendees-{{ e.id }}" style="display:none;" class="attendees-row">
+                        <td colspan="6" style="padding:12px 16px; background:#f8faff;">
+                            <div style="font-weight:600; font-size:12px; color:#1B2A4A; margin-bottom:8px;">
+                                Attendees ({{ rcount }}{% if e.rsvp_limit %} / {{ e.rsvp_limit }} capacity{% endif %})
+                            </div>
+                            <div class="attendees-grid">
+                                {% for u in event_attendees.get(e.id, []) %}
+                                <div class="attendee-chip">
+                                    <span class="attendee-name">{{ u.full_name }}</span>
+                                    <span class="attendee-id">{{ u.student_id }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr id="event-edit-{{ e.id }}" style="display:none;" class="edit-row">
+                        <td colspan="5">
+                            <form method="POST" action="/admin/edit_event/{{ e.id }}" enctype="multipart/form-data">
+                                <div class="form-row" style="margin-bottom:6px;">
+                                    <input type="text" name="title" value="{{ e.title }}" required>
+                                    <input type="datetime-local" name="date" value="{{ e.date.strftime('%Y-%m-%dT%H:%M') }}">
+                                    <input type="text" name="location" value="{{ e.location or '' }}" placeholder="Location">
+                                </div>
+                                <div class="form-row" style="margin-bottom:6px;">
+                                    <select name="campus">
+                                        <option value="">All Campuses</option>
+                                        {% for cp in campuses %}
+                                        <option value="{{ cp }}" {% if e.campus == cp %}selected{% endif %}>{{ cp }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="number" name="rsvp_limit" min="1" value="{{ e.rsvp_limit or '' }}" placeholder="RSVP limit">
+                                </div>
+                                <div class="form-group" style="margin-bottom:6px;">
+                                    <textarea name="description" rows="2" placeholder="Description (optional)" style="width:100%; font-size:13px;">{{ e.description or '' }}</textarea>
+                                </div>
+                                <div class="form-row" style="align-items:center; gap:10px;">
+                                    <label style="font-size:12px; color:#555; white-space:nowrap;">New poster:</label>
+                                    <input type="file" name="poster_file" accept="image/*" style="font-size:12px;">
+                                    {% if e.poster_url %}<span style="font-size:11px;color:#6b7280;">(leave empty to keep current)</span>{% endif %}
+                                    <button type="submit" class="btn-small btn-green">Save</button>
+                                    <button type="button" class="btn-small btn-outline" onclick="toggleEventEdit({{ e.id }})">Cancel</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <div id="tab-news" class="tab-content card">
+            <div class="section-heading">LIU News</div>
+            <div class="inline-form">
+                <strong>Add News</strong>
+                <form method="POST" action="/admin/add_news">
+                    <div class="form-row" style="margin-bottom:8px;">
+                        <input type="text" name="title" placeholder="News title" required style="flex:1;">
+                    </div>
+                    <div class="form-group">
+                        <textarea name="content" rows="3" placeholder="News content..." required style="width:100%;"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Post</button>
+                </form>
+            </div>
+            {% if liu_news %}
+            <div class="bulk-bar">
+                <label class="bulk-select-all-label">
+                    <input type="checkbox" id="newsSelectAll" onchange="toggleBulkSelect('news')">
+                    <span>Select all</span>
+                </label>
+                <form id="bulk-news-form" method="POST" action="/admin/bulk_delete_news"
+                      onsubmit="return confirm('Delete selected news items?')">
+                    <button type="submit" class="btn-small btn-red">
+                        <i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:middle;"></i> Delete selected
+                    </button>
+                </form>
+            </div>
+            {% for n in liu_news %}
+            <div class="ann-admin-item bulk-item">
+                <input type="checkbox" name="ids" value="{{ n.id }}" form="bulk-news-form" class="news-bulk-cb bulk-cb">
+                <div class="bulk-item-body">
+                    <div class="ann-title">{{ n.title }}</div>
+                    <div class="ann-date">{{ n.created_at.strftime('%b %d, %Y') }}</div>
+                    <div class="ann-body">{{ n.content }}</div>
+                    <form method="POST" action="/admin/delete_news/{{ n.id }}"
+                          onsubmit="return confirm('Delete this news item?')" style="margin-top:8px;">
+                        <button class="btn-small btn-red">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="empty-hint" style="margin-top:12px;">No news posted yet.</p>
+            {% endif %}
+        </div>
+
+
+        <div id="tab-announcements" class="tab-content card">
+
+            {% if pending_ann_proposals %}
+            <div class="section-heading" style="color:#d97706; display:flex; align-items:center; gap:6px;">
+                <i data-lucide="clock"></i> Pending Announcement Proposals
+                <span class="pending-badge">{{ pending_ann_proposals|length }}</span>
+            </div>
+            <table class="admin-table" style="margin-bottom:24px;">
+                <thead>
+                    <tr><th>Title</th><th>Club</th><th>Proposed By</th><th>Content</th><th>Note</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                {% for a in pending_ann_proposals %}
+                <tr>
+                    <td>{{ a.title }}</td>
+                    <td>{{ proposal_clubs[a.club_id].name if a.club_id in proposal_clubs else '—' }}</td>
+                    <td>{{ proposers[a.proposed_by].full_name if a.proposed_by in proposers else '—' }}{% if a.proposed_by in proposers %}<span class="member-leader-badge" style="margin-left:5px;">Club Leader</span>{% endif %}</td>
+                    <td style="max-width:200px; white-space:normal;">{{ a.content }}</td>
+                    <td style="max-width:160px; white-space:normal; color:#6b7280; font-style:italic;">{{ a.leader_note or '—' }}</td>
+                    <td class="action-cell">
+                        <form method="POST" action="/admin/approve_ann_proposal/{{ a.id }}" style="display:inline">
+                            <button class="btn-small btn-green">Approve</button>
+                        </form>
+                        <form method="POST" action="/admin/reject_ann_proposal/{{ a.id }}" style="display:inline">
+                            <button class="btn-small btn-red">Reject</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div class="section-heading">Message Club Leaders</div>
+            <div class="inline-form" style="margin-bottom:24px;">
+                <strong>Send a direct notification to club leaders</strong>
+                <form method="POST" action="/admin/message_leaders" style="margin-top:12px;" onsubmit="return validateLeaderMsg(this)">
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:12px; color:#6b7280; font-weight:600; letter-spacing:.04em; text-transform:uppercase; display:block; margin-bottom:5px;">Send to</label>
+                        <div class="leader-ms-wrap" id="leaderMsWrap">
+                            <button type="button" class="leader-ms-trigger" id="leaderMsTrigger" onclick="toggleLeaderDrop(event)">
+                                <span id="leaderMsLabel">Select leaders…</span>
+                                <i data-lucide="chevron-down" style="width:15px;height:15px;flex-shrink:0;"></i>
+                            </button>
+                            <div class="leader-ms-drop" id="leaderMsDrop" onclick="event.stopPropagation()">
+                                <div class="leader-ms-item leader-ms-all-item" onclick="document.getElementById('leaderSelectAll').click()">
+                                    <input type="checkbox" id="leaderSelectAll" onchange="toggleAllLeaders(this)" onclick="event.stopPropagation()" style="accent-color:#1B2A4A; cursor:pointer; flex-shrink:0;">
+                                    <span style="font-weight:600;">All Leaders ({{ leaders_list|length }})</span>
+                                </div>
+                                <div class="leader-ms-divider"></div>
+                                {% for club, leader in leaders_list %}
+                                <div class="leader-ms-item" onclick="document.getElementById('lcb-{{ leader.id }}').click()">
+                                    <input type="checkbox" id="lcb-{{ leader.id }}" name="leader_ids" value="{{ leader.id }}" class="leader-cb" onchange="updateLeaderLabel()" onclick="event.stopPropagation()" style="accent-color:#1B2A4A; cursor:pointer; flex-shrink:0;">
+                                    <span class="leader-ms-name">{{ leader.full_name }}</span>
+                                    <span class="leader-ms-club">{{ club.name }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <label style="font-size:12px; color:#6b7280; font-weight:600; letter-spacing:.04em; text-transform:uppercase; display:block; margin-bottom:5px;">Message</label>
+                        <textarea name="message" id="leaderMsgText" rows="3" placeholder="Write your message…" style="width:100%; resize:vertical;"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary"><i data-lucide="send" style="width:14px;height:14px;vertical-align:middle;margin-right:5px;"></i>Send</button>
+                </form>
+
+                {% if admin_messages %}
+                <div style="margin-top:22px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(0,0,0,0.06);">
+                        <div style="font-size:12px; color:#6b7280; font-weight:600; letter-spacing:.04em; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="history" style="width:13px;height:13px;"></i> Sent Messages
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <label class="bulk-select-all-label">
+                                <input type="checkbox" id="msgSelectAll" onchange="toggleBulkSelect('msg')">
+                                <span>Select all</span>
+                            </label>
+                            <form id="bulk-msg-form" method="POST" action="/admin/bulk_delete_admin_messages"
+                                  onsubmit="return confirm('Delete selected messages and their notifications?')" style="margin:0;">
+                                <button type="submit" class="btn-small btn-red">
+                                    <i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:middle;"></i> Delete selected
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% for msg in admin_messages %}
+                    {% set sndr = admin_msg_senders.get(msg.sender_id) %}
+                    <div class="admin-msg-log-item bulk-item" style="margin-bottom:8px;">
+                        <input type="checkbox" name="ids" value="{{ msg.id }}" form="bulk-msg-form" class="msg-bulk-cb bulk-cb" style="margin-top:6px;">
+                        <div class="bulk-item-body">
+                            <div class="admin-msg-log-header">
+                                <div class="admin-msg-log-meta">
+                                    <i data-lucide="user-check" style="width:13px;height:13px;color:#6b7280;"></i>
+                                    <strong>{{ sndr.full_name if sndr else 'Unknown' }}</strong>
+                                    {% if sndr %}
+                                        {% if sndr.email == super_admin_email %}
+                                            <span class="member-host-badge">Host</span>
+                                        {% else %}
+                                            <span class="member-admin-badge">Admin</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    <span class="admin-msg-log-arrow">→</span>
+                                    <span class="admin-msg-log-recipients">{{ msg.recipient_label }}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span class="admin-msg-log-time">{{ msg.sent_at.strftime('%b %d · %I:%M %p') }}</span>
+                                    <form method="POST" action="/admin/delete_admin_message/{{ msg.id }}" onsubmit="return confirm('Delete this message?')" style="margin:0;">
+                                        <button type="submit" class="btn-small btn-red" style="padding:2px 7px; font-size:11px;" title="Delete">
+                                            <i data-lucide="trash-2" style="width:11px;height:11px;vertical-align:middle;"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="admin-msg-log-body">{{ msg.message }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="section-heading">Announcements</div>
+
+            <div class="inline-form">
+                <strong>Add Announcement</strong>
+                <form method="POST" action="/admin/add_announcement">
+                    <div class="form-row" style="margin-bottom: 8px;">
+                        <input type="text" name="title" placeholder="Title" required>
+                        <select name="club_id">
+                            <option value="">System-wide</option>
+                            {% for club in clubs %}
+                            <option value="{{ club.id }}">{{ club.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <textarea name="content" rows="3" placeholder="Content..." required style="width:100%;"></textarea>
+                    </div>
+                    <div class="form-group" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <label style="font-size:13px; color:#6b7280; white-space:nowrap;">Schedule (optional):</label>
+                        <input type="datetime-local" name="publish_at" style="flex:1; min-width:180px;">
+                    </div>
+                    <button type="submit" class="btn-primary">Post</button>
+                </form>
+            </div>
+
+            {% if announcements %}
+            <div class="bulk-bar">
+                <label class="bulk-select-all-label">
+                    <input type="checkbox" id="annSelectAll" onchange="toggleBulkSelect('ann')">
+                    <span>Select all</span>
+                </label>
+                <form id="bulk-ann-form" method="POST" action="/admin/bulk_delete_announcements"
+                      onsubmit="return confirm('Delete selected announcements?')">
+                    <button type="submit" class="btn-small btn-red">
+                        <i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:middle;"></i> Delete selected
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            {% for ann in announcements %}
+            <div class="ann-admin-item bulk-item">
+                <input type="checkbox" name="ids" value="{{ ann.id }}" form="bulk-ann-form" class="ann-bulk-cb bulk-cb">
+                <div class="bulk-item-body">
+                <div id="ann-view-{{ ann.id }}">
+                    <div class="ann-title">{{ ann.title }} {% if ann.pinned %}<span class="pin-badge"><i data-lucide="pin" style="width:11px;height:11px;vertical-align:middle;"></i> Pinned</span>{% endif %}{% if ann.publish_at and ann.status == 'pending' %}<span class="badge-scheduled"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:middle;"></i> Scheduled {{ ann.publish_at.strftime('%b %d, %H:%M') }}</span>{% endif %}</div>
+                    <div class="ann-date">
+                        {{ ann.created_at.strftime('%b %d, %Y') }}
+                        {% if ann.club_id %}
+                            &mdash;
+                            {% for c in clubs %}{% if c.id == ann.club_id %}{{ c.name }}{% endif %}{% endfor %}
+                        {% else %}
+                            &mdash; System-wide
+                        {% endif %}
+                    </div>
+                    <div class="ann-body">{{ ann.content }}</div>
+                    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn-small btn-outline" onclick="toggleAnnEdit({{ ann.id }})">Edit</button>
+                        <form method="POST" action="/admin/pin_announcement/{{ ann.id }}" style="display:inline;">
+                            <button type="submit" class="btn-small {% if ann.pinned %}btn-pin-active{% endif %}">
+                                <i data-lucide="{{ 'pin-off' if ann.pinned else 'pin' }}" style="width:13px;height:13px;vertical-align:middle;"></i>
+                                {{ 'Unpin' if ann.pinned else 'Pin' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="/admin/delete_announcement/{{ ann.id }}"
+                              onsubmit="return confirm('Delete this announcement?')">
+                            <button class="btn-small btn-red">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                <div id="ann-edit-{{ ann.id }}" style="display:none; margin-top:8px;">
+                    <form method="POST" action="/admin/edit_announcement/{{ ann.id }}">
+                        <div class="form-group" style="margin-bottom:6px;">
+                            <input type="text" name="title" value="{{ ann.title }}" required style="width:100%;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:6px;">
+                            <textarea name="content" rows="4" required style="width:100%;">{{ ann.content }}</textarea>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="submit" class="btn-small btn-green">Save</button>
+                            <button type="button" class="btn-small btn-outline" onclick="toggleAnnEdit({{ ann.id }})">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+
+        <div id="tab-reports" class="tab-content">
+            <div id="printable-report">
+
+                <div class="report-header">
+                    <div class="report-header-left">
+                        <div class="report-logo-row">
+                            <img src="/static/liu-bg.png" alt="LIU" class="report-logo">
+                            <div>
+                                <div class="report-title">LIU Clubs — System Report</div>
+                                <div class="report-date">Generated {{ report_date }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="window.print()" class="btn-primary report-print-btn">
+                        <i data-lucide="download"></i> Download PDF
+                    </button>
+                </div>
+
+                <div class="report-kpi-row">
+                    <div class="report-kpi">
+                        <div class="report-kpi-val">{{ total_users }}</div>
+                        <div class="report-kpi-lbl">Registered Students</div>
+                    </div>
+                    <div class="report-kpi">
+                        <div class="report-kpi-val">{{ clubs|length }}</div>
+                        <div class="report-kpi-lbl">Active Clubs</div>
+                    </div>
+                    <div class="report-kpi">
+                        <div class="report-kpi-val">{{ live_event_count }}</div>
+                        <div class="report-kpi-lbl">Approved Events</div>
+                    </div>
+                    <div class="report-kpi">
+                        <div class="report-kpi-val">{{ total_rsvps }}</div>
+                        <div class="report-kpi-lbl">Total RSVPs</div>
+                    </div>
+                    <div class="report-kpi">
+                        <div class="report-kpi-val">{{ announcements | selectattr('status', 'equalto', 'approved') | list | length }}</div>
+                        <div class="report-kpi-lbl">Announcements</div>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Club Membership</div>
+                    <div class="report-two-col">
+                        <div class="report-chart-wrap">
+                            <canvas id="membersPerClubChart"></canvas>
+                        </div>
+                        <table class="admin-table report-table">
+                            <thead><tr><th>#</th><th>Club</th><th>Members</th></tr></thead>
+                            <tbody>
+                                {% for row in club_member_counts | sort(attribute='count', reverse=True) %}
+                                <tr>
+                                    <td class="report-rank">{{ loop.index }}</td>
+                                    <td>{{ row.club.name }}</td>
+                                    <td><strong>{{ row.count }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Growth Trends — Last 6 Months</div>
+                    <div class="report-two-col">
+                        <div class="report-chart-wrap">
+                            <div class="report-chart-label">New Members per Month</div>
+                            <canvas id="membersChart"></canvas>
+                        </div>
+                        <div class="report-chart-wrap">
+                            <div class="report-chart-label">Events per Month</div>
+                            <canvas id="eventsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Event Attendance</div>
+                    {% if total_rsvps > 0 %}
+                    <table class="admin-table report-table">
+                        <thead>
+                            <tr><th>#</th><th>Event</th><th>Date</th><th>Club</th><th>RSVPs</th><th>Capacity</th><th>Fill Rate</th></tr>
+                        </thead>
+                        <tbody>
+                            {% set ns = namespace(shown=0) %}
+                            {% for e in top_events %}
+                            {% set rc = event_rsvp_counts.get(e.id, 0) %}
+                            {% if rc > 0 %}
+                            {% set ns.shown = ns.shown + 1 %}
+                            <tr>
+                                <td class="report-rank">{{ ns.shown }}</td>
+                                <td>{{ e.title }}</td>
+                                <td>{{ e.date.strftime('%b %d, %Y') }}</td>
+                                <td>{% if not e.club_id %}All Clubs{% elif e.club_id in event_clubs %}{{ event_clubs[e.club_id].name }}{% endif %}</td>
+                                <td><strong>{{ rc }}</strong></td>
+                                <td>{{ e.rsvp_limit or '—' }}</td>
+                                <td>
+                                    {% if e.rsvp_limit and e.rsvp_limit > 0 %}
+                                    {% set pct = ((rc / e.rsvp_limit) * 100) | round | int %}
+                                    {% set pct_capped = [pct, 100] | min %}
+                                    <div class="fill-bar-wrap">
+                                        <div class="fill-bar"><div class="fill-bar-fill" style="width:{{ pct_capped }}%; background: {% if pct_capped >= 90 %}#ef4444{% elif pct_capped >= 60 %}#f59e0b{% else %}#10b981{% endif %};"></div></div>
+                                        <span class="fill-pct">{{ pct }}%</span>
+                                    </div>
+                                    {% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            {% if ns.shown == 0 %}
+                            <tr><td colspan="7" style="color:#9ca3af; text-align:center; padding:20px;">No RSVPs recorded yet.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="empty-state">No RSVPs recorded yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="report-footer-note">
+                    LIU Clubs Platform &mdash; Confidential &mdash; {{ report_date }}
+                </div>
+
+            </div>
+        </div>
+
+        {% if is_super_admin %}
+        <div id="tab-admins" class="tab-content card">
+            <div class="section-heading">Admin Access</div>
+
+            <div class="inline-form" style="margin-bottom: 24px;">
+                <strong>Grant Admin to a Member</strong>
+                <form method="POST" action="/admin/grant_admin" id="grantAdminForm">
+                    <div class="form-row" style="margin-top: 10px;">
+                        <select name="user_id" id="grantUserSelect" required style="flex:1;">
+                            <option value="">— Select a member —</option>
+                            {% for u in all_members %}
+                            <option value="{{ u.id }}">{{ u.full_name }} ({{ u.email }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn-primary">Grant Admin</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="section-heading">Current Admins</div>
+            {% if non_super_admins %}
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Student ID</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for u in non_super_admins %}
+                    <tr>
+                        <td>{{ u.full_name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.student_id }}</td>
+                        <td class="action-cell">
+                            <form method="POST" action="/admin/revoke_admin/{{ u.id }}"
+                                  onsubmit="return confirm('Revoke admin access from this user?')">
+                                <button class="btn-small btn-red">Revoke Admin</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No other admins yet.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <footer class="site-footer">&copy; 2026 LIU Clubs &mdash; Built by Fares Al Ahmed</footer>
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+    lucide.createIcons();
+    function toggleBulkSelect(prefix) {
+        var all = document.getElementById(prefix + 'SelectAll');
+        document.querySelectorAll('.' + prefix + '-bulk-cb').forEach(function(cb) {
+            cb.checked = all.checked;
+        });
+    }
+    function toggleLeaderDrop(e) {
+        e.stopPropagation();
+        document.getElementById('leaderMsDrop').classList.toggle('open');
+    }
+    function toggleAllLeaders(cb) {
+        document.querySelectorAll('.leader-cb').forEach(function(c) { c.checked = cb.checked; });
+        updateLeaderLabel();
+    }
+    function updateLeaderLabel() {
+        var allCb = document.getElementById('leaderSelectAll');
+        var cbs = Array.from(document.querySelectorAll('.leader-cb'));
+        var checked = cbs.filter(function(c) { return c.checked; });
+        var lbl = document.getElementById('leaderMsLabel');
+        if (!lbl) return;
+        if (checked.length === 0) {
+            lbl.textContent = 'Select leaders…';
+            if (allCb) { allCb.checked = false; allCb.indeterminate = false; }
+        } else if (checked.length === cbs.length) {
+            lbl.textContent = 'All leaders (' + cbs.length + ')';
+            if (allCb) { allCb.checked = true; allCb.indeterminate = false; }
+        } else {
+            lbl.textContent = checked.length + ' leader' + (checked.length > 1 ? 's' : '') + ' selected';
+            if (allCb) { allCb.checked = false; allCb.indeterminate = true; }
+        }
+    }
+    function validateLeaderMsg(form) {
+        var checked = form.querySelectorAll('.leader-cb:checked');
+        var msg = document.getElementById('leaderMsgText');
+        if (!checked.length) { alert('Please select at least one leader.'); return false; }
+        if (!msg || !msg.value.trim()) { alert('Message cannot be empty.'); return false; }
+        return true;
+    }
+    document.addEventListener('click', function(e) {
+        var wrap = document.getElementById('leaderMsWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            var drop = document.getElementById('leaderMsDrop');
+            if (drop) drop.classList.remove('open');
+        }
+    });
+    function toggleAttendees(event_id) {
+        var row = document.getElementById('event-attendees-' + event_id);
+        if (!row) return;
+        row.style.display = (row.style.display === 'table-row') ? 'none' : 'table-row';
+    }
+
+    (function() {
+        var labels     = {{ month_labels | tojson }};
+        var memberData = {{ monthly_members | tojson }};
+        var eventData  = {{ monthly_events | tojson }};
+
+        var clubNames  = {{ club_member_counts | map(attribute='club') | map(attribute='name') | list | tojson }};
+        var clubCounts = {{ club_member_counts | map(attribute='count') | list | tojson }};
+
+        var chartDefaults = {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        };
+
+        var mCtx = document.getElementById('membersChart');
+        if (mCtx) new Chart(mCtx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ label: 'New Members', data: memberData,
+                backgroundColor: 'rgba(27,42,74,0.75)', borderRadius: 6 }] },
+            options: chartDefaults
+        });
+
+        var eCtx = document.getElementById('eventsChart');
+        if (eCtx) new Chart(eCtx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Events', data: eventData,
+                borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4 }] },
+            options: chartDefaults
+        });
+
+        var pcCtx = document.getElementById('membersPerClubChart');
+        if (pcCtx) new Chart(pcCtx, {
+            type: 'bar',
+            data: { labels: clubNames, datasets: [{ label: 'Members', data: clubCounts,
+                backgroundColor: [
+                    'rgba(27,42,74,0.8)','rgba(79,70,229,0.75)','rgba(16,185,129,0.75)',
+                    'rgba(245,158,11,0.75)','rgba(239,68,68,0.75)','rgba(99,102,241,0.75)'
+                ], borderRadius: 6 }] },
+            options: { indexAxis: 'y', responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+        });
+    })();
+    </script>
+</body>
+</html>

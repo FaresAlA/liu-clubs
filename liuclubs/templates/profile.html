@@ -1,0 +1,73 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#1B2A4A">
+    <title>My Profile — LIU Clubs</title>
+    <link rel="icon" href="/static/liu-logo.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo-link"><img src="/static/liu-bg.png" alt="LIU Clubs" class="nav-logo-img"></a>
+            <span class="nav-user">{{ user.full_name }}</span>
+        </div>
+        <nav class="nav-links">
+            <a href="/" onclick="if(document.referrer && document.referrer.includes(location.hostname)){ history.back(); return false; }" class="nav-link">← Back</a>
+            <a href="/" class="nav-link">Home</a>
+            <a href="/logout" class="nav-link" onclick="return confirm('Are you sure you want to logout?')">Logout</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+
+        <div class="profile-hero card">
+            <div class="profile-avatar {{ 'avatar-female' if user.gender == 'female' else 'avatar-male' }}">
+                <i data-lucide="user"></i>
+            </div>
+            <div class="profile-info">
+                <h1>
+                    {{ user.full_name }}
+                    {% if user.role == 'admin' %}
+                    <span class="{{ 'member-host-badge' if user.email == super_admin_email else 'member-admin-badge' }}">{{ 'Host' if user.email == super_admin_email else 'Admin' }}</span>
+                    {% elif leader_club %}
+                    <span class="member-leader-badge">Club Leader of {{ leader_club.name }}</span>
+                    {% endif %}
+                </h1>
+                <div class="profile-meta">
+                    <span><i data-lucide="graduation-cap"></i> {{ user.student_id }}</span>
+                    <span><i data-lucide="mail"></i> {{ user.email }}</span>
+                    {% if user.campus %}<span><i data-lucide="map-pin"></i> {{ user.campus }} Campus</span>{% endif %}
+                    <span><i data-lucide="calendar"></i> Member since {{ user.created_at.strftime('%b %Y') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-heading">My Clubs</div>
+            {% if my_clubs %}
+                {% for row in my_clubs %}
+                <div class="profile-club-row">
+                    <a href="/club/{{ row.club.id }}" class="profile-club-name">
+                        {{ row.club.name }}
+                    </a>
+                    <span class="status-{{ row.membership.status }}">{{ row.membership.status }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p class="empty-state">You haven't joined any clubs yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <footer class="site-footer">&copy; 2026 LIU Clubs &mdash; Built by Fares Al Ahmed</footer>
+    <script src="/static/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
