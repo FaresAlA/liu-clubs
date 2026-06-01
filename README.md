@@ -2,7 +2,7 @@
 
 A full-stack web application for managing student clubs at Lebanese International University (LIU). Built with Flask and deployed on Railway.
 
-**Live:** https://liu-clubs-production.up.railway.app
+**Live:** https://liu.clubs.fares7.me
 
 ---
 
